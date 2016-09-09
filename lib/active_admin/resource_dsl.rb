@@ -180,7 +180,7 @@ module ActiveAdmin
     delegate :before_save,    :after_save,    to: :controller
     delegate :before_destroy, :after_destroy, to: :controller
 
-    # This code defines both *_filter and *_action for Rails 4.0 to Rails 5.
+    # This code defines both *_filter and *_action for Rails 4.2 to Rails 5.
     actions = [
       :before, :skip_before,
       :after,  :skip_after,
