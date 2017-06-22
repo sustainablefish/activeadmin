@@ -2,7 +2,8 @@
 
 // Reset Away!
 .active_admin {
-  @import global-reset;
+  @import "active_admin/mixins";
+  @include global-reset;
 
   // Normalize
   @import "active_admin/normalize";

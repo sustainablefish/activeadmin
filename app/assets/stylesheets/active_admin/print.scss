@@ -6,7 +6,7 @@
 
   // Reset
   @import "active_admin/mixins/reset";
-  @import global-reset;
+  @include global-reset;
 
 
   // Normalize
