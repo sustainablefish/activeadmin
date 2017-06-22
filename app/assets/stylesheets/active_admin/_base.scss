@@ -2,7 +2,7 @@
 
 // Reset Away!
 .active_admin {
-  @include global-reset;
+  @import global-reset;
 
   // Normalize
   @import "active_admin/normalize";
