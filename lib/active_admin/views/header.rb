@@ -7,20 +7,20 @@ module ActiveAdmin
       end
 
       def default_class_name
-        'navbar navbar-toggleable-md navbar-inverse bg-inverse fixed-top'
+        'navbar navbar-expand-md navbar-dark bg-dark fixed-top'
       end
 
       def build(namespace, menu)
         @namespace = namespace
         @menu = menu
         @utility_menu = @namespace.fetch_menu(:utility_navigation)
-
-        button class: 'navbar-toggler navbar-toggler-right', type: 'button', 'data-toggle': 'collapse', 'data-target': '#navbarsMain' do 
-          span class: 'navbar-toggler-icon'
-        end
         
         a class: 'navbar-brand', href: @namespace.site_title_link do
           @namespace.site_title
+        end
+
+        button class: 'navbar-toggler', type: 'button', 'data-toggle': 'collapse', 'data-target': '#navbarsMain' do 
+          span class: 'navbar-toggler-icon'
         end
 
         div class: 'collapse navbar-collapse', id: "navbarsMain" do
