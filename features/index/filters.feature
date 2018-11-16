@@ -1,3 +1,4 @@
+@filters
 Feature: Index Filtering
 
   Scenario: Default Resources Filters
@@ -21,6 +22,18 @@ Feature: Index Filtering
     And I press "Filter"
     And I should see 1 posts in the table
     And I should see "Hello World 2" within ".index_table"
+    And I should see current filter "title_contains" equal to "Hello World 2" with label "Title contains"
+
+  Scenario: No XSS in Resources Filters
+    Given an index configuration of:
+    """
+      ActiveAdmin.register Post do
+        filter :title
+      end
+    """
+    When I fill in "Title" with "<script>alert('hax')</script>"
+    And I press "Filter"
+    Then I should see current filter "title_contains" equal to "<script>alert('hax')</script>" with label "Title contains"
 
   Scenario: Filtering posts with no results
     Given 3 posts exist
@@ -38,6 +51,24 @@ Feature: Index Filtering
     And I should not see pagination
     And I should see "No Posts found"
 
+  Scenario: Filtering posts with pagination
+    Given 7 posts with the title "Hello World 3" exist
+    And 1 post with the title "Hello World 4" exist
+    And an index configuration of:
+    """
+      ActiveAdmin.register Post do
+        config.per_page = 2
+      end
+    """
+    When I fill in "Title" with "Hello World 3"
+    And I press "Filter"
+
+    Then I follow "2"
+    Then I should see "Displaying Posts 3 - 4 of 7 in total"
+
+    Then I follow "3"
+    Then I should see "Displaying Posts 5 - 6 of 7 in total"
+
   Scenario: Filtering posts while not on the first page
     Given 9 posts exist
     And an index configuration of:
@@ -47,7 +78,7 @@ Feature: Index Filtering
       end
     """
     When I follow "2"
-    Then I should see "Displaying Posts 6 - 9 of 9 in total"
+    Then I should see "Displaying Posts 6 - 9 of 9 in total"
 
     When I fill in "Title" with "Hello World 2"
     And I press "Filter"
@@ -82,6 +113,7 @@ Feature: Index Filtering
     Then I should see 1 posts in the table
     And I should see "Hello World" within ".index_table"
     And the "Jane Doe" checkbox should be checked
+    And I should see current filter "author_id_in" equal to "Jane Doe"
 
   Scenario: Disabling filters
     Given an index configuration of:
@@ -104,6 +136,7 @@ Feature: Index Filtering
     Then I should see 1 categories in the table
     And I should see "Non-Fiction" within ".index_table"
     And I should not see "Mystery" within ".index_table"
+    And I should see current filter "posts_author_id_eq" equal to "Jane Doe"
 
   @javascript
   Scenario: Clearing filter preserves custom parameters
@@ -142,6 +175,7 @@ Feature: Index Filtering
     And I should see "Mystery" within ".index_table"
     And I should see "Non-Fiction" within ".index_table"
     And the "Jane Doe" checkbox should not be checked
+    And I should not see a sidebar titled "Search status:"
 
   Scenario: Checkboxes - Filtering categories via posts written by Jane Doe
     Given a category named "Mystery" exists
@@ -151,12 +185,48 @@ Feature: Index Filtering
       ActiveAdmin.register Category do
         filter :authors, as: :check_boxes
       end
+
     """
     When I check "Jane Doe"
     And I press "Filter"
     Then I should see 1 categories in the table
     And I should see "Non-Fiction" within ".index_table"
     And the "Jane Doe" checkbox should be checked
+
+  Scenario: Filtering posts without default scope
+
+    Given a post with the title "Hello World" written by "Jane Doe" exists
+    Given an index configuration of:
+    """
+      ActiveAdmin.register Post do
+        scope :all
+        scope :published do |posts|
+          posts.where("published_date IS NOT NULL")
+        end
+
+        filter :title
+      end
+    """
+    When I fill in "Title" with "Hello"
+    And I press "Filter"
+    Then I should see current filter "title_contains" equal to "Hello" with label "Title contains"
+
+  Scenario: Filtering posts by category
+    Given a category named "Mystery" exists
+    And a post with the title "Hello World" written by "Jane Doe" in category "Non-Fiction" exists
+    Given an index configuration of:
+    """
+      ActiveAdmin.register Category
+      ActiveAdmin.register Post do
+         filter :category
+      end
+    """
+    And I am on the index page for posts
+
+    When I select "Non-Fiction" from "Category"
+    And I press "Filter"
+    Then I should see a sidebar titled "Search status:"
+    And I should see link "Non-Fiction" in current filters
 
   Scenario: Enabling filters status sidebar
     Given an index configuration of:
@@ -167,7 +237,7 @@ Feature: Index Filtering
       end
     """
     And I press "Filter"
-    Then I should see a sidebar titled "Search Status:"
+    Then I should see a sidebar titled "Search status:"
 
   Scenario: Disabling filters status sidebar
     Given an index configuration of:
@@ -178,4 +248,4 @@ Feature: Index Filtering
       end
     """
     And I press "Filter"
-    Then I should not see a sidebar titled "Search Status:"
+    Then I should not see a sidebar titled "Search status:"

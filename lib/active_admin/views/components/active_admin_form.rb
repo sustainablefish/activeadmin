@@ -34,7 +34,7 @@ module ActiveAdmin
         @opening_tag, @closing_tag = split_string_on(form_string, "</form>")
         instance_eval(&block) if block_given?
 
-        # Rails 4 sets multipart automatically if a file field is present,
+        # Rails sets multipart automatically if a file field is present,
         # but the form tag has already been rendered before the block eval.
         if multipart? && @opening_tag !~ /multipart/
           @opening_tag.sub!(/<form/, '<form enctype="multipart/form-data"')
@@ -57,6 +57,12 @@ module ActiveAdmin
           end
           insert_tag(SemanticInputsProxy, form_builder, *args, &wrapped_block)
         else
+          # Set except option to prevent sensitive fields from being shown in forms by default.
+          opts = args.extract_options!
+          opts[:except] ||= []
+          ActiveAdmin.application.filter_attributes.each { |e| opts[:except] << e }
+          args << opts
+
           proxy_call_to_form(:inputs, *args, &block)
         end
       end
@@ -72,8 +78,15 @@ module ActiveAdmin
       end
 
       def commit_action_with_cancel_link
+        add_create_another_checkbox
         action(:submit)
         cancel_link
+      end
+
+      def add_create_another_checkbox
+        if %w(new create).include?(helpers.action_name) && active_admin_config && active_admin_config.create_another
+          current_arbre_element.add_child(create_another_checkbox)
+        end
       end
 
       def has_many(*args, &block)
@@ -90,6 +103,24 @@ module ActiveAdmin
 
       def form_buffers
         raise "'form_buffers' has been removed from ActiveAdmin::FormBuilder, please read https://github.com/activeadmin/activeadmin/blob/master/docs/5-forms.md for details."
+      end
+
+      private
+
+      def create_another_checkbox
+        create_another = params[:create_another]
+        label = @resource.class.model_name.human
+        Arbre::Context.new do
+          li class: 'create_another' do
+            input(
+              checked: create_another,
+              id: 'create_another',
+              name: 'create_another',
+              type: 'checkbox'
+            )
+            label(I18n.t('active_admin.create_another', model: label), for: 'create_another')
+          end
+        end
       end
     end
 

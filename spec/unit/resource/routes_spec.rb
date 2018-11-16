@@ -73,7 +73,11 @@ RSpec.describe ActiveAdmin::Resource::Routes do
     before do
       load_resources do
         ActiveAdmin.register Category
-        ActiveAdmin.register(Post) { belongs_to :category }
+        ActiveAdmin.register(Post) do
+          belongs_to :category
+
+          member_action :foo
+        end
       end
     end
 
@@ -83,6 +87,10 @@ RSpec.describe ActiveAdmin::Resource::Routes do
 
     it "should nest the instance path" do
       expect(config.route_instance_path(post)).to eq "/admin/categories/1/posts/3"
+    end
+
+    it "should nest the member action path" do
+      expect(config.route_member_action_path(:foo, post)).to eq "/admin/categories/1/posts/3/foo"
     end
   end
 
@@ -101,7 +109,7 @@ RSpec.describe ActiveAdmin::Resource::Routes do
       end
 
       it "should include :scope and :q params" do
-        params = { category_id: 1, q: { name_equals: "Any" }, scope: :all }
+        params = ActionController::Parameters.new(category_id: 1, q: { name_equals: "Any" }, scope: :all)
         additional_params = { locale: 'en' }
         batch_action_path = "/admin/categories/1/posts/batch_action?locale=en&q%5Bname_equals%5D=Any&scope=all"
 
@@ -115,7 +123,7 @@ RSpec.describe ActiveAdmin::Resource::Routes do
       let(:config) { ActiveAdmin.register News }
 
       it "should return the plural batch action route with _index and given params" do
-        params = { q: { name_equals: "Any" }, scope: :all }
+        params = ActionController::Parameters.new(q: { name_equals: "Any" }, scope: :all)
         additional_params = { locale: 'en' }
         batch_action_path = "/admin/news/batch_action?locale=en&q%5Bname_equals%5D=Any&scope=all"
         expect(config.route_batch_action_path(params, additional_params)).to eq batch_action_path

@@ -1,5 +1,3 @@
-# encoding: utf-8
-
 require 'rails_helper'
 require File.expand_path('config_shared_examples', File.dirname(__FILE__))
 
@@ -35,11 +33,8 @@ module ActiveAdmin
       end
 
       it "returns the singular, lowercase name" do
-        if RUBY_VERSION >= '2.4.0'
-          expect(config.resource_name.singular).to eq "chocolate i løve you!"
-        else
-          expect(config.resource_name.singular).to eq "chocolate i lØve you!"
-        end
+        expect(config.resource_name.singular)
+          .to eq "chocolate i l#{RUBY_VERSION >= '2.4.0' ? 'ø' : 'Ø'}ve you!"
       end
     end
 
@@ -70,7 +65,6 @@ module ActiveAdmin
     it "should not belong_to anything" do
       expect(config.belongs_to?).to eq false
     end
-
 
     it "should not have any action_items" do
       expect(config.action_items?).to eq false

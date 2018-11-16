@@ -15,7 +15,7 @@ module ActiveAdmin
       # Attempts to call any known display name methods on the resource.
       # See the setting in `application.rb` for the list of methods and their priority.
       def display_name(resource)
-        render_in_context resource, display_name_method_for(resource) unless resource.nil?
+        sanitize(render_in_context(resource, display_name_method_for(resource)).to_s) unless resource.nil?
       end
 
       # Looks up and caches the first available display name method.
@@ -45,7 +45,7 @@ module ActiveAdmin
 
         if value.is_a?(Arbre::Element)
           value
-        elsif boolean_attr?(resource, attr)
+        elsif boolean_attr?(resource, attr, value)
           Arbre::Context.new { status_tag value }
         else
           pretty_format value
@@ -68,20 +68,33 @@ module ActiveAdmin
         when String, Numeric, Symbol, Arbre::Element
           object.to_s
         when Date, Time
-          localize object, format: active_admin_application.localize_format
+          I18n.localize object, format: active_admin_application.localize_format
+        when Array
+          format_collection(object)
         else
           if defined?(::ActiveRecord) && object.is_a?(ActiveRecord::Base) ||
              defined?(::Mongoid)      && object.class.include?(Mongoid::Document)
             auto_link object
+          elsif defined?(::ActiveRecord) && object.is_a?(ActiveRecord::Relation)
+            format_collection(object)
           else
             display_name object
           end
         end
       end
 
-      def boolean_attr?(resource, attr)
-        if resource.class.respond_to? :columns_hash
-          column = resource.class.columns_hash[attr.to_s] and column.type == :boolean
+      def format_collection(collection)
+        safe_join(collection.map { |item| pretty_format(item) }, ', ')
+      end
+
+      def boolean_attr?(resource, attr, value)
+        case value
+        when TrueClass, FalseClass
+          true
+        else
+          if resource.class.respond_to? :columns_hash
+            column = resource.class.columns_hash[attr.to_s] and column.type == :boolean
+          end
         end
       end
 

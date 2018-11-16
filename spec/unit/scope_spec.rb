@@ -145,16 +145,16 @@ RSpec.describe ActiveAdmin::Scope do
         allow(loc).to receive(:t).with(:published, scope: 'scopes').and_return("All published")
         loc
       end
-      let(:scope)        { ActiveAdmin::Scope.new :published, :published, localizer: localizer }
+      let(:scope) { ActiveAdmin::Scope.new :published, :published, localizer: localizer }
 
       describe '#name' do
         subject { super().name }
-        it         { is_expected.to eq("All published")}
+        it { is_expected.to eq("All published")}
       end
 
       describe '#id' do
         subject { super().id }
-        it           { is_expected.to eq("published")}
+        it { is_expected.to eq("published")}
       end
 
       describe '#scope_method' do
@@ -206,4 +206,20 @@ RSpec.describe ActiveAdmin::Scope do
     end
   end
 
+  describe "group" do
+    it "should default to nil" do
+      scope = ActiveAdmin::Scope.new(:default)
+      expect(scope.group).to eq nil
+    end
+
+    it "should accept a symbol to assign a group to the scope" do
+      scope = ActiveAdmin::Scope.new(:default, nil, group: :test)
+      expect(scope.group).to eq :test
+    end
+
+    it "should accept a string to assign a group to the scope" do
+      scope = ActiveAdmin::Scope.new(:default, nil, group: "test")
+      expect(scope.group).to eq :test
+    end
+  end
 end

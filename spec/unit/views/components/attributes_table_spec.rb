@@ -3,7 +3,7 @@ require 'rails_helper'
 RSpec.describe ActiveAdmin::Views::AttributesTable do
 
   describe "creating with the dsl" do
-    let(:helpers) { action_view }
+    let(:helpers) { mock_action_view }
 
     let(:post) do
       post = Post.new title: "Hello World", body: nil
@@ -177,7 +177,7 @@ RSpec.describe ActiveAdmin::Views::AttributesTable do
         let(:cols) { table.find_by_tag "col" }
 
         it "contains a col for each record (plus headers)" do
-          expect(cols.size).to eq (2 + 1)
+          expect(cols.size).to eq(2 + 1)
         end
 
         it "assigns an id to each col" do
@@ -234,7 +234,6 @@ RSpec.describe ActiveAdmin::Views::AttributesTable do
         end
       end # describe rendering rows
     end # with a collection
-
 
     context "when using a single Hash" do
       let(:table) do

@@ -27,7 +27,7 @@ module ActiveAdmin
     # ```
     #
     # Second, you can pass a block to the tile option which will then be
-    # used as the contents fo the title. The resource being rendered
+    # used as the contents of the title. The resource being rendered
     # is passed in to the block. For Example:
     #
     # ```ruby
@@ -89,7 +89,6 @@ module ActiveAdmin
         @title
       end
 
-
       # Setter method for the configuration of the body
       #
       def body(method = nil, &block)
@@ -124,7 +123,7 @@ module ActiveAdmin
         if @title
           h3 do
             a(href: resource_path(post)) do
-             render_method_on_post_or_call_proc post, @title
+              render_method_on_post_or_call_proc post, @title
             end
           end
         else

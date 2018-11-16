@@ -5,7 +5,7 @@ RSpec.describe ActiveAdmin::FormBuilder do
   # Setup an ActionView::Base object which can be used for
   # generating the form for.
   let(:helpers) do
-    view = action_view
+    view = mock_action_view
     def view.posts_path
       "/posts"
     end
@@ -30,16 +30,23 @@ RSpec.describe ActiveAdmin::FormBuilder do
       args.inspect
     end
 
+    def view.action_name
+      'edit'
+    end
+
     view
   end
 
-  def build_form(options = {}, form_object = Post.new, &block)
+  def form_html(options = {}, form_object = Post.new, &block)
     options = {url: helpers.posts_path}.merge(options)
 
     form = render_arbre_component({form_object: form_object, form_options: options, form_block: block}, helpers) do
       active_admin_form_for(assigns[:form_object], assigns[:form_options], &assigns[:form_block])
     end.to_s
+  end
 
+  def build_form(options = {}, form_object = Post.new, &block)
+    form = form_html(options, form_object, &block)
     Capybara.string(form)
   end
 
@@ -97,7 +104,7 @@ RSpec.describe ActiveAdmin::FormBuilder do
       end
     end
 
-   it "should generate a text input" do
+    it "should generate a text input" do
       expect(body).to have_selector("input[type=text][name='post[title]']")
     end
     it "should generate a textarea" do
@@ -157,13 +164,39 @@ RSpec.describe ActiveAdmin::FormBuilder do
       end
       expect(body).to have_selector("[id=post_title]", count: 1)
     end
-    it "should generate one button and a cancel link" do
+
+    context "create another checkbox" do
+      subject do
+        build_form do |f|
+          f.actions
+        end
+      end
+
+      %w(new create).each do |action_name|
+        it "generates create another checkbox on #{action_name} page" do
+          expect(helpers).to receive(:action_name) { action_name }
+          allow(helpers).to receive(:active_admin_config) { instance_double(ActiveAdmin::Resource, create_another: true) }
+
+          is_expected.to have_selector("[type=checkbox]", count: 1)
+                            .and have_selector("[name=create_another]", count: 1)
+        end
+      end
+
+      %w(show edit update).each do |action_name|
+        it "doesn't generate create another checkbox on #{action_name} page" do
+          is_expected.not_to have_selector("[name=create_another]", count: 1)
+        end
+      end
+    end
+
+    it "should generate one button create another checkbox and a cancel link" do
       body = build_form do |f|
         f.actions
       end
       expect(body).to have_selector("[type=submit]", count: 1)
       expect(body).to have_selector("[class=cancel]", count: 1)
     end
+
     it "should generate multiple actions" do
       body = build_form do |f|
         f.actions do
@@ -607,7 +640,7 @@ RSpec.describe ActiveAdmin::FormBuilder do
         end
 
         it "should wrap the destroy field in an li with class 'has_many_delete'" do
-          expect(body).to have_selector(".has_many_container > fieldset > ol > li.has_many_delete > input", count: 1)
+          expect(body).to have_selector(".has_many_container > fieldset > ol > li.has_many_delete > input", count: 1, visible: false)
         end
       end
 
@@ -617,7 +650,7 @@ RSpec.describe ActiveAdmin::FormBuilder do
         end
 
         it "should not have a boolean field for _destroy" do
-          expect(body).not_to have_selector("input[name='category[posts_attributes][#{child_num}][_destroy]']")
+          expect(body).not_to have_selector("input[name='category[posts_attributes][#{child_num}][_destroy]']", visible: :all)
         end
 
         it "should not have a check box with 'Remove' as its label" do
@@ -866,20 +899,25 @@ RSpec.describe ActiveAdmin::FormBuilder do
       end
 
       context "in another has_many block" do
-        let :body do
-          build_form({url: '/categories'}, Category.new) do |f|
+        let :body_html do
+          form_html({url: '/categories'}, Category.new) do |f|
             f.object.posts.build
             f.has_many :posts do |p|
               p.object.taggings.build
+              p.input :title
+
               p.has_many :taggings do |t|
                 t.input :tag
+                t.input :position
               end
             end
           end
         end
+        let(:body) { Capybara.string body_html }
 
-        it "should wrap the inner has_many fieldset in an ol > li" do
-          expect(body).to have_selector(".has_many_container ol > li.has_many_container > fieldset")
+        it "displays the input between the outer and inner has_many" do
+          expect(body).to have_selector(".has_many_container ol > li:first-child input#category_posts_attributes_0_title")
+          expect(body).to have_selector(".has_many_container ol > li:nth-child(2).has_many_container > fieldset")
         end
 
         it "should not contain invalid li children" do
@@ -913,15 +951,15 @@ RSpec.describe ActiveAdmin::FormBuilder do
     "[:title].each{ |r| f.input r }"               => "post_title",
     "[:title].map { |r| f.input r }"               => "post_title",
   }.each do |source, selector|
-   it "should properly buffer `#{source}`" do
-     body = build_form do |f|
-       f.inputs do
-         eval source
-         eval source
-       end
-     end
-     expect(body).to have_selector("[id=#{selector}]", count: 2)
-   end
+    it "should properly buffer `#{source}`" do
+      body = build_form do |f|
+        f.inputs do
+          eval source
+          eval source
+        end
+      end
+      expect(body).to have_selector("[id=#{selector}]", count: 2, visible: :all)
+    end
   end
 
   describe "datepicker input" do
@@ -954,6 +992,20 @@ RSpec.describe ActiveAdmin::FormBuilder do
         selector = "input.datepicker[type=text][name='post[created_at]']"
         expect(body).to have_selector(selector)
         expect(body.find(selector)["data-datepicker-options"]).to eq({ minDate: '2013-10-18', maxDate: '2013-12-31' }.to_json)
+      end
+    end
+
+    describe "with label as proc" do
+      let :body do
+        build_form do |f|
+          f.inputs do
+            f.input :created_at, as: :datepicker, label: proc { 'Title from proc' }
+          end
+        end
+      end
+
+      it "should render proper label" do
+        expect(body).to have_selector("label", text: "Title from proc")
       end
     end
   end

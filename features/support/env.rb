@@ -6,15 +6,14 @@
 
 ENV['RAILS_ENV'] = 'test'
 
-require File.expand_path('../../../spec/spec_helper', __FILE__)
+require 'simplecov' if ENV["COVERAGE"] == "true"
+
+Dir["#{File.expand_path('../../step_definitions', __FILE__)}/*.rb"].each do |f|
+  require f
+end
 
 require 'rails'
 ENV['RAILS_ROOT'] = File.expand_path("../../../spec/rails/rails-#{Rails.version}", __FILE__)
-
-# Create the test app if it doesn't exists
-unless File.exists?(ENV['RAILS_ROOT'])
-  system 'rake setup'
-end
 
 require 'active_record'
 require 'active_admin'
@@ -31,11 +30,11 @@ require 'cucumber/rails'
 require 'rspec/mocks'
 World(RSpec::Mocks::ExampleMethods)
 
-Before do
+Around do |scenario, block|
   RSpec::Mocks.setup
-end
 
-After do
+  block.call
+
   begin
     RSpec::Mocks.verify
   ensure
@@ -43,22 +42,34 @@ After do
   end
 end
 
+After '@debug' do |scenario|
+  save_and_open_page if scenario.failed?
+end
+
 require 'capybara/rails'
 require 'capybara/cucumber'
 require 'capybara/session'
-require 'capybara/poltergeist'
-require 'phantomjs/poltergeist'
+require 'selenium-webdriver'
 
-Capybara.javascript_driver = :poltergeist
+# copied from https://about.gitlab.com/2017/12/19/moving-to-headless-chrome/
+Capybara.register_driver :chrome do |app|
+  options = Selenium::WebDriver::Chrome::Options.new(
+    args: %w[headless disable-gpu no-sandbox]
+  )
+  Capybara::Selenium::Driver.new(app, browser: :chrome, options: options)
+end
+
+Capybara.javascript_driver = :chrome
+
+Capybara.server = :webrick
+
+Capybara.asset_host = 'http://localhost:3000'
 
 # Capybara defaults to XPath selectors rather than Webrat's default of CSS3. In
 # order to ease the transition to Capybara we set the default here. If you'd
 # prefer to use XPath just remove this line and adjust any selectors in your
 # steps to use the XPath syntax.
 Capybara.default_selector = :css
-
-# Make input type=hidden visible
-Capybara.ignore_hidden_elements = false
 
 # If you set this to false, any error raised from within your app will bubble
 # up to your step definition and out to cucumber unless you catch it somewhere
@@ -81,37 +92,38 @@ include Warden::Test::Helpers
 
 After do
   Warden.test_reset!
-
-  # Reset back to the default auth adapter
-  ActiveAdmin.application.namespace(:admin).
-    authorization_adapter = ActiveAdmin::AuthorizationAdapter
 end
 
 Before do
-  begin
-    # We are caching classes, but need to manually clear references to
-    # the controllers. If they aren't clear, the router stores references
-    ActiveSupport::Dependencies.clear
+  # We are caching classes, but need to manually clear references to
+  # the controllers. If they aren't clear, the router stores references
+  ActiveSupport::Dependencies.clear
 
-    # Reload Active Admin
-    ActiveAdmin.unload!
-    ActiveAdmin.load!
-  rescue
-    p $!
-    raise $!
-  end
+  # Reload Active Admin
+  ActiveAdmin.unload!
+  ActiveAdmin.load!
 end
 
 # Force deprecations to raise an exception.
 ActiveSupport::Deprecation.behavior = :raise
 
-# improve the performance of the specs suite by not logging anything
-# see http://blog.plataformatec.com.br/2011/12/three-tips-to-improve-the-performance-of-your-test-suite/
-Rails.logger.level = 4
+After '@authorization' do |scenario, block|
+  # Reset back to the default auth adapter
+  ActiveAdmin.application.namespace(:admin).
+    authorization_adapter = ActiveAdmin::AuthorizationAdapter
+end
 
 Around '@silent_unpermitted_params_failure' do |scenario, block|
   original = ActionController::Parameters.action_on_unpermitted_parameters
-  ActionController::Parameters.action_on_unpermitted_parameters = false
-  block.call
-  ActionController::Parameters.action_on_unpermitted_parameters = original
+
+  begin
+    ActionController::Parameters.action_on_unpermitted_parameters = false
+    block.call
+  ensure
+    ActionController::Parameters.action_on_unpermitted_parameters = original
+  end
+end
+
+Around '@locale_manipulation' do |scenario, block|
+  I18n.with_locale(:en) { block.call }
 end

@@ -1,7 +1,6 @@
 module ActiveAdmin
   class BaseController < ::InheritedResources::Base
     module Authorization
-      include MethodOrProcHelper
       extend ActiveSupport::Concern
 
       ACTIONS_DICTIONARY = {
@@ -37,7 +36,6 @@ module ActiveAdmin
       def authorized?(action, subject = nil)
         active_admin_authorization.authorized?(action, subject)
       end
-
 
       # Authorize the action and subject. Available in the controller
       # as well as all the views. If the action is not allowd, it raises
@@ -101,7 +99,7 @@ module ActiveAdmin
       end
 
       def dispatch_active_admin_access_denied(exception)
-        call_method_or_exec_proc active_admin_namespace.on_unauthorized_access, exception
+        instance_exec(self, exception, &active_admin_namespace.on_unauthorized_access.to_proc)
       end
 
       def rescue_active_admin_access_denied(exception)
@@ -113,16 +111,14 @@ module ActiveAdmin
             redirect_backwards_or_to_root
           end
 
-          body = ActiveAdmin::Dependency.rails.render_key
-
-          format.csv  { render body =>        error,           status: :unauthorized }
+          format.csv  { render body:          error,           status: :unauthorized }
           format.json { render json: { error: error },         status: :unauthorized }
           format.xml  { render xml: "<error>#{error}</error>", status: :unauthorized }
         end
       end
 
       def redirect_backwards_or_to_root
-        ActiveAdmin::Dependency.rails.redirect_back self, active_admin_root
+        redirect_back fallback_location: active_admin_root
       end
 
     end
